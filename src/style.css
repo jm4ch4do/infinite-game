@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+html,
+body,
+#app {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.setup-option.is-selected {
+  box-shadow: 0 0 0 2px #facc15;
+  filter: brightness(1.3);
+}
