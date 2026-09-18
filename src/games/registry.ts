@@ -1,6 +1,5 @@
 import type Phaser from "phaser";
 import { startGame as start01Game } from "./01-simple-game";
-import { startGame as start02Game } from "./02-simple-game-copy";
 
 export type PlayerNames = { left: string; right: string };
 
