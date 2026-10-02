@@ -1,1 +1,4 @@
 npm run dev
+
+http://localhost:5173/              // live server
+http://localhost:5173/preview.html  // menu preview
