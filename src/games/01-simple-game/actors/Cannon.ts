@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { Actor } from "./Actor";
+import { Bullet } from "./Bullet";
 import { type Side } from "../config";
+import type { GameState } from "../status/GameState";
 
 export class Cannon extends Actor {
   static readonly width = 50;
@@ -12,7 +14,6 @@ export class Cannon extends Actor {
   readonly shape: Phaser.GameObjects.Rectangle;
   readonly readyIndicator: Phaser.GameObjects.Arc;
   readonly side: Side;
-  onFire?: () => void;
   private ready = true;
 
   // Creates one cannon at the given position and side.
@@ -26,8 +27,8 @@ export class Cannon extends Actor {
   }
 
   // Shows the ready indicator for the current cooldown and game state.
-  update(isGameOver: boolean) {
-    this.readyIndicator.setVisible(!isGameOver && this.ready);
+  update(_delta: number, state: GameState) {
+    this.readyIndicator.setVisible(!state.isGameOver && this.ready);
   }
 
   // Fires once if the cooldown has ended; otherwise does nothing.
@@ -40,15 +41,25 @@ export class Cannon extends Actor {
     this.scene.time.delayedCall(Cannon.fireCooldown, () => {
       this.ready = true;
     });
-    this.onFire?.();
+    const direction = this.side === "left" ? 1 : -1;
+    this.emit({
+      type: "spawned",
+      actor: new Bullet(this.scene, this.readyIndicator.x, this.readyIndicator.y, this.side, direction * Bullet.speed, 0),
+    });
+    this.audio.playShoot();
     return true;
   }
 
-  // Positions and scales the cannon for the current playfield.
-  layout(x: number, y: number, scale: number) {
+  // Places the cannon at its side of the screen for the current playfield.
+  handleResize(width: number, height: number, state: GameState) {
+    const scale = state.playfieldScale;
+    const margin = Cannon.margin * scale;
+    const x = this.side === "left" ? margin : width - margin;
+    const y = height / 2;
     const indicatorOffset = Cannon.readyIndicatorOffset * scale;
     const indicatorX = this.side === "left" ? x + indicatorOffset : x - indicatorOffset;
     this.shape.setScale(scale).setPosition(x, y);
     this.readyIndicator.setScale(scale).setPosition(indicatorX, y);
   }
 }
+

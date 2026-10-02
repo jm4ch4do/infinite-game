@@ -1,8 +1,7 @@
 import Phaser from "phaser";
 import { Actor } from "./Actor";
 import { type Side } from "../config";
-import { Planet } from "./Planet";
-import { Target } from "./Target";
+import type { GameState } from "../status/GameState";
 
 type PhysicsArc = Phaser.GameObjects.Arc & { body: Phaser.Physics.Arcade.Body };
 
@@ -19,27 +18,28 @@ export class Bullet extends Actor {
     super(scene);
     this.body = this.track(scene.add.circle(x, y, Bullet.radius, 0xfacc15));
     this.side = side;
+    this.collisionLayer = "bullet";
+    this.collider = this.body;
     scene.physics.add.existing(this.body);
-    (this.body as PhysicsArc).body.setVelocity(velocityX, velocityY);
+    const physics = (this.body as PhysicsArc).body;
+    physics.setCircle(Bullet.radius);
+    physics.setVelocity(velocityX, velocityY);
   }
 
-  // Tracks the bullet's lifetime; Arcade physics handles its movement.
-  update(delta: number) {
+  // Tracks the bullet's lifetime and removes it once expired or the round is over; Arcade physics handles movement.
+  update(delta: number, state: GameState) {
     this.age += delta;
+    if (state.isGameOver || this.isExpired(this.scene.scale.width, this.scene.scale.height)) {
+      this.destroy();
+    }
   }
 
-  // Checks whether the bullet is touching the central planet.
-  collidesWithPlanet(planet: Phaser.GameObjects.Arc, playfieldScale: number) {
-    const bulletCircle = new Phaser.Geom.Circle(this.body.x, this.body.y, Bullet.radius * playfieldScale);
-    const planetCircle = new Phaser.Geom.Circle(planet.x, planet.y, Planet.radius * playfieldScale);
-    return Phaser.Geom.Intersects.CircleToCircle(bulletCircle, planetCircle);
-  }
-
-  // Checks whether the bullet is touching a target's current world position.
-  collidesWithTarget(targetPoint: Phaser.Math.Vector2, playfieldScale: number) {
-    const bulletCircle = new Phaser.Geom.Circle(this.body.x, this.body.y, Bullet.radius * playfieldScale);
-    const targetCircle = new Phaser.Geom.Circle(targetPoint.x, targetPoint.y, Target.radius * playfieldScale);
-    return Phaser.Geom.Intersects.CircleToCircle(bulletCircle, targetCircle);
+  // Scores for its owner if the other actor is worth points, and is spent by whatever it hits.
+  handleCollision(other: Actor) {
+    if (other.points > 0) {
+      this.emit({ type: "score", side: this.side, points: other.points });
+    }
+    this.destroy();
   }
 
   // Reports whether the bullet has outlived itself or left the visible game area.

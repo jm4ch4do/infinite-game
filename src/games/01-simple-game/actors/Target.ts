@@ -8,15 +8,27 @@ export class Target extends Actor {
   private static readonly valueWeights = [10, 6, 3, 1.5, 0.5];
   readonly body: Phaser.GameObjects.Arc;
   readonly label: Phaser.GameObjects.Text;
-  readonly value: number;
 
   // Creates one orbiting target with its score value label.
   constructor(scene: Phaser.Scene, x: number, y: number, value: number) {
     super(scene);
-    this.value = value;
+    this.points = value;
     this.body = this.track(scene.add.circle(x, y, Target.radius, 0xec4899));
     this.body.setStrokeStyle(3, 0xffffff, 0.6);
+    this.collisionLayer = "target";
+    this.collider = this.body;
+    scene.physics.add.existing(this.body);
+    const physics = (this.body as Phaser.GameObjects.Arc & { body: Phaser.Physics.Arcade.Body }).body;
+    physics.setCircle(Target.radius);
+    // The orbit container moves the target, so physics must only read its position.
+    physics.moves = false;
     this.label = this.track(scene.add.text(x, y, String(value), { fontSize: "20px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5));
+  }
+
+  // A target is removed when anything hits it.
+  handleCollision() {
+    this.audio.playHit();
+    this.destroy();
   }
 
   // Randomly chooses a target score using the configured weights.
@@ -34,3 +46,4 @@ export class Target extends Actor {
     return Target.valueWeights.length;
   }
 }
+

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { Actor } from "./Actor";
+import type { GameState } from "../status/GameState";
 
 export class Planet extends Actor {
   static readonly radius = 150;
@@ -16,6 +17,13 @@ export class Planet extends Actor {
       scene.add.circle(x - Planet.radius * 0.35, y - Planet.radius * 0.35, Planet.radius * 0.22, 0xffffff, 0.2),
     );
 
+    this.collisionLayer = "planet";
+    this.collider = this.body;
+    scene.physics.add.existing(this.body);
+    const physics = (this.body as Phaser.GameObjects.Arc & { body: Phaser.Physics.Arcade.Body }).body;
+    physics.setCircle(Planet.radius);
+    physics.moves = false;
+
     scene.tweens.add({
       targets: this.glow,
       alpha: { from: 0.08, to: 0.2 },
@@ -27,10 +35,14 @@ export class Planet extends Actor {
     });
   }
 
-  // Positions and scales all visible planet parts together.
-  layout(x: number, y: number, scale: number) {
+  // Centers the planet on screen and scales all visible parts together.
+  handleResize(width: number, height: number, state: GameState) {
+    const x = width / 2;
+    const y = height / 2;
+    const scale = state.playfieldScale;
     this.body.setScale(scale).setPosition(x, y);
     this.glow.setScale(scale).setPosition(x, y);
     this.highlight.setScale(scale).setPosition(x - Planet.radius * 0.35 * scale, y - Planet.radius * 0.35 * scale);
   }
 }
+

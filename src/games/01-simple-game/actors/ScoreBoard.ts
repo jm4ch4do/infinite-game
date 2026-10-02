@@ -10,11 +10,15 @@ export class ScoreBoard extends Actor {
   readonly text: Record<Side, Phaser.GameObjects.Text>;
   readonly names: Record<Side, Phaser.GameObjects.Text>;
   winScore: number;
+  private width: number;
+  private height: number;
 
   // Creates the two player names and score displays.
   constructor(scene: Phaser.Scene, playerNames: Record<Side, string>, winScore: number) {
     super(scene);
     this.winScore = winScore;
+    this.width = scene.scale.width;
+    this.height = scene.scale.height;
     const y = scene.scale.height - ScoreBoard.marginBottom;
 
     const leftScore = this.track(scene.add.text(0, y, this.formatScore(0), { fontSize: "28px", color: "#22d3ee", fontStyle: "bold" }).setOrigin(0, 1));
@@ -32,13 +36,15 @@ export class ScoreBoard extends Actor {
     return `${score}/${this.winScore}`;
   }
 
-  // Updates the displayed score for one player.
-  updateScore(side: Side, newScore: number) {
+  // Shows the new score for one player and animates it.
+  handleScoreChanged(side: Side, newScore: number) {
     this.text[side].setText(this.formatScore(newScore));
+    this.arrange();
+    this.highlight(side);
   }
 
   // Animates a player's score after they earn points.
-  highlight(side: Side) {
+  private highlight(side: Side) {
     const text = this.text[side];
     this.scene.tweens.killTweensOf(text);
     text.setScale(ScoreBoard.highlightScale);
@@ -50,9 +56,17 @@ export class ScoreBoard extends Actor {
     });
   }
 
+  // Remembers the screen size and repositions the texts.
+  handleResize(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+    this.arrange();
+  }
+
   // Positions the names and scores along the bottom of the screen.
-  layout(width: number, height: number) {
-    const y = height - ScoreBoard.marginBottom;
+  private arrange() {
+    const width = this.width;
+    const y = this.height - ScoreBoard.marginBottom;
     const gap = 10;
 
     this.text.left.setPosition(Cannon.margin, y);

@@ -1,8 +1,17 @@
+import type Phaser from "phaser";
+
 export type GameAudio = {
   playShoot: () => void;
   playHit: () => void;
   dispose: () => void;
 };
+
+// Shares the scene's audio with its actors, so each one can play its own sounds.
+export const provideAudio = (scene: Phaser.Scene, audio: GameAudio) => {
+  scene.data.set("audio", audio);
+};
+
+export const audioOf = (scene: Phaser.Scene) => scene.data.get("audio") as GameAudio;
 
 // Synthesized via Web Audio API since no laser/hit sound assets exist yet.
 export const createGameAudio = (): GameAudio => {

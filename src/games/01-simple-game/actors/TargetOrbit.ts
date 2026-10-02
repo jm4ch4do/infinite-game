@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { Actor } from "./Actor";
 import { Target } from "./Target";
+import type { GameState } from "../status/GameState";
 
 export class TargetOrbit extends Actor {
   readonly container: Phaser.GameObjects.Container;
@@ -19,14 +20,34 @@ export class TargetOrbit extends Actor {
       const target = new Target(scene, targetX, targetY, Target.pickValue());
 
       this.targets.push(target);
+      target.onDestroy(() => this.removeTarget(target));
       children.push(target.body, target.label);
     }
 
     this.container = this.track(scene.add.container(x, y, children));
   }
 
-  // Positions and scales the complete group of orbiting targets.
-  layout(x: number, y: number, scale: number) {
-    this.container.setScale(scale).setPosition(x, y);
+  // Rotates the orbit and keeps each score label upright.
+  update(delta: number, state: GameState) {
+    this.container.rotation += (delta / 1000) * state.rotationSpeed;
+    this.targets.forEach((target) => (target.label.rotation = -this.container.rotation));
+  }
+
+  // Centers and scales the complete group of orbiting targets.
+  handleResize(width: number, height: number, state: GameState) {
+    this.container.setScale(state.playfieldScale).setPosition(width / 2, height / 2);
+  }
+
+  // Drops a destroyed target and reports when none are left.
+  private removeTarget(target: Target) {
+    const index = this.targets.indexOf(target);
+    if (index !== -1) {
+      this.targets.splice(index, 1);
+    }
+
+    if (this.targets.length === 0) {
+      this.emit({ type: "targetsEmpty", source: this });
+    }
   }
 }
+

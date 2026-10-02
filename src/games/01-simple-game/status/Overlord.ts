@@ -1,106 +1,160 @@
 import Phaser from "phaser";
+import { Actor as _aActor, type ActorEvent } from "../actors/Actor";
 import { type Side } from "../config";
+import { Player as _pPlayer } from "../players/Player";
 import { GameState as _sGameState } from "./GameState";
-import { Spawner as _sSpawner } from "./Spawner";
+import { MainSpawner as _sMainSpawner } from "./MainSpawner";
 import type { MatchWins } from "../../registry";
 
 type OverlordCallbacks = {
-  onScoreChanged: (side: Side, score: number) => void;
   onMatchWon: (side: Side) => MatchWins;
   onRoundWon: () => void;
 };
 
 export class Overlord {
+  // Pairs of collision layers Phaser should report overlaps for.
+  private static readonly collisionPairs: [string, string][] = [
+    ["bullet", "target"],
+    ["bullet", "planet"],
+  ];
+
   readonly scene: Phaser.Scene;
   readonly state: _sGameState;
-  readonly spawner: _sSpawner;
+  readonly mainSpawner: _sMainSpawner;
   readonly callbacks: OverlordCallbacks;
+  private readonly actors: _aActor[] = [];
+  private readonly players: _pPlayer[] = [];
+  private readonly actorsByCollider = new Map<Phaser.GameObjects.GameObject, _aActor>();
+  private readonly layers = new Map<string, Phaser.GameObjects.Group>();
+  private readonly pendingCollisions: [_aActor, _aActor][] = [];
+  private emptyOrbit: _aActor | null = null;
 
-  // Connects the spawner, game state, and scene response callbacks.
-  constructor(scene: Phaser.Scene, state: _sGameState, spawner: _sSpawner, callbacks: OverlordCallbacks) {
+  // Connects the main spawner, game state, scene callbacks, and Phaser collision detection.
+  constructor(scene: Phaser.Scene, state: _sGameState, mainSpawner: _sMainSpawner, callbacks: OverlordCallbacks) {
     this.scene = scene;
     this.state = state;
-    this.spawner = spawner;
+    this.mainSpawner = mainSpawner;
     this.callbacks = callbacks;
+    mainSpawner.onSpawned = (actor) => this.register(actor);
+    mainSpawner.onPlayerCreated = (player) => this.players.push(player);
+
+    Overlord.collisionPairs.forEach(([first, second]) => {
+      scene.physics.add.overlap(this.layer(first), this.layer(second), this.queueCollision);
+    });
   }
 
-  // Gives the scene access to the spawner's current actors for layout.
-  get planet() {
-    return this.spawner.planet;
+  // Spawns the starting actors.
+  start(centerX: number, centerY: number, width: number, playerNames: Record<Side, string>) {
+    this.mainSpawner.spawnInitial(centerX, centerY, width, playerNames);
   }
 
-  get players() {
-    return this.spawner.players;
+  // Rescales the playfield and lets every actor reposition itself.
+  resize(width: number, height: number) {
+    this.state.updatePlayfieldScale(width);
+    this.actors.forEach((actor) => actor.handleResize(width, height, this.state));
   }
-
-  get targetOrbit() {
-    return this.spawner.targetOrbit;
-  }
-
-  get scoreBoard() {
-    return this.spawner.scoreBoard;
-  }
-
-  // Advances target rotation, cannon input, and bullet movement for one frame.
+  // Resolves this frame's collisions, lets the players act, then updates every actor in turn.
   update(delta: number) {
-    const targetOrbit = this.spawner.targetOrbit;
-    targetOrbit.container.rotation += (delta / 1000) * this.state.rotationSpeed;
-    targetOrbit.targets.forEach((target) => (target.label.rotation = -targetOrbit.container.rotation));
+    this.resolveCollisions();
+    this.players.forEach((player) => player.update(this.state));
 
-    this.spawner.players.forEach((player) => player.update(this.state.isGameOver));
-
-    this.updateBullets(delta);
+    [...this.actors].forEach((actor) => {
+      if (!actor.isDestroyed) {
+        actor.update(delta, this.state);
+      }
+    });
   }
 
-  // Moves bullets and resolves their collisions or expiration.
-  updateBullets(delta: number) {
-    const { targetOrbit, planet, bullets } = this.spawner;
-    const matrix = targetOrbit.container.getWorldTransformMatrix();
-    const targetPoint = new Phaser.Math.Vector2();
+  // Starts tracking an actor: updates, collision layer membership, and removal on destroy.
+  private register(actor: _aActor) {
+    this.actors.push(actor);
+    actor.onEvent = (event) => this.handleEvent(event);
+    actor.handleResize(this.scene.scale.width, this.scene.scale.height, this.state);
 
-    for (let i = bullets.length - 1; i >= 0; i--) {
-      const bullet = bullets[i];
-      bullet.update(delta);
+    if (actor.collisionLayer && actor.collider) {
+      this.layer(actor.collisionLayer).add(actor.collider);
+      this.actorsByCollider.set(actor.collider, actor);
+    }
 
-      const hitPlanet = bullet.collidesWithPlanet(planet.body, this.state.playfieldScale);
-      let hitTargetIndex = -1;
+    actor.onDestroy(() => {
+      this.actors.splice(this.actors.indexOf(actor), 1);
+      if (actor.collider) {
+        this.actorsByCollider.delete(actor.collider);
+      }
+    });
+  }
 
-      for (let j = 0; j < targetOrbit.targets.length; j++) {
-        const target = targetOrbit.targets[j];
-        matrix.transformPoint(target.body.x, target.body.y, targetPoint);
-        if (bullet.collidesWithTarget(targetPoint, this.state.playfieldScale)) {
-          hitTargetIndex = j;
-          break;
+  // Reacts to something an actor announced.
+  private handleEvent(event: ActorEvent) {
+    switch (event.type) {
+      case "spawned":
+        if (this.state.isGameOver) {
+          event.actor.destroy();
+        } else {
+          this.register(event.actor);
         }
-      }
-
-      if (hitTargetIndex !== -1) {
-        this.handleTargetHit(hitTargetIndex, bullet.side);
-      }
-
-      const expired = hitPlanet || hitTargetIndex !== -1 || bullet.isExpired(this.scene.scale.width, this.scene.scale.height) || this.state.isGameOver;
-      if (expired) {
-        bullet.destroy();
-      }
+        break;
+      case "score":
+        this.scorePoints(event.side, event.points);
+        break;
+      case "targetsEmpty":
+        this.emptyOrbit = event.source;
+        break;
     }
   }
 
-  // Removes a hit target and applies the resulting score and round rules.
-  handleTargetHit(index: number, side: Side) {
-    const target = this.spawner.targetOrbit.targets[index];
-    const value = target.value;
-    const player = this.spawner.getPlayer(side);
-    const score = player.addScore(value, this.state.winScore);
-    const won = !this.state.isGameOver && player.hasWon(this.state.winScore);
+  // Returns the physics group for a collision layer, creating it on first use.
+  private layer(name: string) {
+    let group = this.layers.get(name);
+    if (!group) {
+      group = this.scene.add.group();
+      this.layers.set(name, group);
+    }
+    return group;
+  }
+
+  // Receives Phaser's overlap report; resolution waits until the physics step is over so actors aren't destroyed mid-step.
+  private queueCollision = (first: unknown, second: unknown) => {
+    const a = this.actorsByCollider.get(first as Phaser.GameObjects.GameObject);
+    const b = this.actorsByCollider.get(second as Phaser.GameObjects.GameObject);
+    if (a && b) {
+      this.pendingCollisions.push([a, b]);
+    }
+  };
+
+  // Tells both actors about each reported collision; scoring comes back as a score event.
+  private resolveCollisions() {
+    this.pendingCollisions.splice(0).forEach(([a, b]) => {
+      // An earlier collision this frame may already have consumed one of them.
+      if (a.isDestroyed || b.isDestroyed) {
+        return;
+      }
+
+      a.handleCollision(b);
+      b.handleCollision(a);
+    });
+
+    // Decided after all collisions so a win is recorded before the targets are refilled.
+    if (this.emptyOrbit) {
+      this.emptyOrbit.destroy();
+      if (!this.state.isGameOver) {
+        this.state.increaseRotationSpeed();
+        this.mainSpawner.spawnTargetOrbit(this.scene.scale.width / 2, this.scene.scale.height / 2);
+      }
+      this.emptyOrbit = null;
+    }
+  }
+
+  // Adds points for a side, records the win if reached, and reports the win to the scene.
+  private scorePoints(side: Side, points: number) {
+    const score = this.state.addScore(side, points);
+    const won = this.state.hasWon(side);
 
     if (won) {
       this.state.recordWin(side, this.callbacks.onMatchWon(side));
     }
 
-    // Remove after recording the win so the spawner sees the correct game-over state.
-    target.destroy();
-
-    this.callbacks.onScoreChanged(side, score);
+    this.actors.forEach((actor) => actor.handleScoreChanged(side, score));
     if (won) {
       this.callbacks.onRoundWon();
     }

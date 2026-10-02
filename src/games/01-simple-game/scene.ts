@@ -1,12 +1,10 @@
 import Phaser from "phaser";
-import { createGameAudio, type GameAudio } from "./audio";
+import { createGameAudio, provideAudio, type GameAudio } from "./audio";
 import type { PlayerNames as _regPlayerNames, GameCallbacks as _regGameCallbacks, Difficulty as _regDifficulty, WinScore as _regWinScore, MatchWins as _regMatchWins } from "../registry";
-import { Cannon as _aCannon } from "./actors/Cannon";
 import { GameState as _sGameState } from "./status/GameState";
 import { Overlord as _sOverlord } from "./status/Overlord";
-import { Spawner as _sSpawner } from "./status/Spawner";
+import { MainSpawner as _sMainSpawner } from "./status/MainSpawner";
 import { WinPanel as _sWinPanel } from "./status/WinPanel";
-import { type Side } from "./config";
 
 export class SimpleGameScene extends Phaser.Scene {
   /*
@@ -60,17 +58,17 @@ export class SimpleGameScene extends Phaser.Scene {
 
     // add audio and set it to dispose on game end
     this.audio = createGameAudio();
+    provideAudio(this, this.audio);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.audio.dispose());
 
     // add actors and status panels
-    const spawner = new _sSpawner(this, this.state);
-    spawner.spawnInitial(centerX, centerY, this.scale.width, this.playerNames);
-    this.logic = new _sOverlord(this, this.state, spawner, {
-      onScoreChanged: this.showScoreChange,
+    const mainSpawner = new _sMainSpawner(this, this.state);
+    this.logic = new _sOverlord(this, this.state, mainSpawner, {
       onMatchWon: this.callbacks?.onGameWon ?? (() => ({ ...this.state.matchWins })),
       onRoundWon: this.showWinPanel,
     });
-    this.layoutPlayfield(this.scale.width, centerY);
+    this.logic.start(centerX, centerY, this.scale.width, this.playerNames);
+    this.logic.resize(this.scale.width, this.scale.height);
 
     this.scale.on("resize", this.handleResize, this);
   }
@@ -85,29 +83,6 @@ export class SimpleGameScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     this.logic.update(delta);
   }
-
-  /*
-   * -------------------------------------------------------------------------
-   * Score updates
-   * -------------------------------------------------------------------------
-   */
-  // Repositions the score display after a score or screen size change.
-  private layoutScoreTexts(width: number, height: number) {
-    this.logic.scoreBoard.layout(width, height);
-  }
-
-  // Plays the visual score animation for the player who scored.
-  private highlightScore(side: Side) {
-    this.logic.scoreBoard.highlight(side);
-  }
-
-  // Plays feedback and updates the score display after a target is hit.
-  private showScoreChange = (side: Side, score: number) => {
-    this.audio.playHit();
-    this.logic.scoreBoard.updateScore(side, score);
-    this.layoutScoreTexts(this.scale.width, this.scale.height);
-    this.highlightScore(side);
-  };
 
   /*
    * -------------------------------------------------------------------------
@@ -133,27 +108,9 @@ export class SimpleGameScene extends Phaser.Scene {
    * Responsive layout
    * -------------------------------------------------------------------------
    */
-  // Scales and positions actors to fit the current screen width.
-  private layoutPlayfield(width: number, centerY: number) {
-    this.state.updatePlayfieldScale(width);
-    const centerX = width / 2;
-    const cannonMargin = _aCannon.margin * this.state.playfieldScale;
-
-    this.logic.planet.layout(centerX, centerY, this.state.playfieldScale);
-    this.logic.targetOrbit.layout(centerX, centerY, this.state.playfieldScale);
-
-    this.logic.players.forEach((player) => {
-      const x = player.side === "left" ? cannonMargin : width - cannonMargin;
-      player.layout(x, centerY, this.state.playfieldScale);
-    });
-  }
-
   // Reapplies layout when Phaser reports a screen size change.
   private handleResize(gameSize: Phaser.Structs.Size) {
-    const centerY = gameSize.height / 2;
-
-    this.layoutPlayfield(gameSize.width, centerY);
+    this.logic.resize(gameSize.width, gameSize.height);
     this.winPanel?.layout();
-    this.layoutScoreTexts(gameSize.width, gameSize.height);
   }
 }
