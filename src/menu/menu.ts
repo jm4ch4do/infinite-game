@@ -10,7 +10,7 @@ import _tplMenuShell from "./menu-shell.template.html?raw";
 
 /*
  * -------------------------------------------------------------------------
- * Function connection map
+ * Function connection map (see menu_flow.md for graphic view)
  * -------------------------------------------------------------------------
  *
  * main.ts
