@@ -200,6 +200,11 @@ export const mountMenu = (root: HTMLDivElement) => {
 
     sceneRoot.innerHTML = "";
     hud.classList.remove("hidden");
+    
+    const hudTitle = hud.querySelector<HTMLHeadingElement>("h2");
+    if (hudTitle) {
+      hudTitle.textContent = entry.title;
+    }
 
     destroyActiveGame();
 
