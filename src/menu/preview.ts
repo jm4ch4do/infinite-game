@@ -1,9 +1,9 @@
-﻿import "../style.css";
+import "../style.css";
 import { renderMainMenu } from "./main/mainMenu";
 import { renderGameSelectMenu } from "./game-select/gameSelectMenu";
 import { renderSetupMenu } from "./setup/setupMenu";
 import Phaser from "phaser";
-import { WinPanel } from "../games/01-simple-game/status/WinPanel";
+import { WinPanel } from "../games/01-shoot-the-moons/status/WinPanel";
 import _tplMenuShell from "./menu-shell.template.html?raw";
 
 /* Dev-only page (preview.html) that renders each menu screen without starting the game. */
