@@ -20,7 +20,7 @@ src/
 │   ├── setup/         # Player setup and configuration
 │   └── audio.ts       # Menu audio management
 ├── games/             # Game implementations
-│   ├── 01-simple-game/  # First game example
+│   ├── 01-shoot-the-moons/  # First game example
 │   ├── 02-simple-game-copy/
 │   └── registry.ts    # Game registry
 └── assets/            # Shared assets (sounds, etc.)
