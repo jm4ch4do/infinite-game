@@ -30,7 +30,7 @@ export class Bullet extends Actor {
   update(delta: number, state: GameState) {
     this.age += delta;
     if (state.isGameOver || this.isExpired(this.scene.scale.width, this.scene.scale.height)) {
-      this.destroy();
+      this.remove();
     }
   }
 
@@ -39,7 +39,7 @@ export class Bullet extends Actor {
     if (other.points > 0) {
       this.emit({ type: "score", side: this.side, points: other.points });
     }
-    this.destroy();
+    this.remove();
   }
 
   // Reports whether the bullet has outlived itself or left the visible game area.

@@ -20,7 +20,7 @@ export class TargetOrbit extends Actor {
       const target = new Target(scene, targetX, targetY, Target.pickValue());
 
       this.targets.push(target);
-      target.onDestroy(() => this.removeTarget(target));
+      target.onRemove(() => this.removeTarget(target));
       children.push(target.body, target.label);
     }
 
@@ -38,7 +38,7 @@ export class TargetOrbit extends Actor {
     this.container.setScale(state.playfieldScale).setPosition(width / 2, height / 2);
   }
 
-  // Drops a destroyed target and reports when none are left.
+  // Drops a removed target and reports when none are left.
   private removeTarget(target: Target) {
     const index = this.targets.indexOf(target);
     if (index !== -1) {

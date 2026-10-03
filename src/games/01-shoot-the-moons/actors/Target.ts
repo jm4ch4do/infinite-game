@@ -28,7 +28,7 @@ export class Target extends Actor {
   // A target is removed when anything hits it.
   handleCollision() {
     this.audio.playHit();
-    this.destroy();
+    this.remove();
   }
 
   // Randomly chooses a target score using the configured weights.
