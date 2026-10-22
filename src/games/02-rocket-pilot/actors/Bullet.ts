@@ -19,7 +19,7 @@ export class Bullet extends Actor {
     this.body = this.track(scene.add.circle(x, y, Bullet.radius, 0xfacc15));
     this.side = side;
     this.collisionLayer = "bullet";
-    this.collider = this.body;
+    this.colliders = [this.body];
     scene.physics.add.existing(this.body);
     const physics = (this.body as PhysicsArc).body;
     physics.setCircle(Bullet.radius);

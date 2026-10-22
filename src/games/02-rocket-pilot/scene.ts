@@ -5,6 +5,7 @@ import { GameState as _sGameState } from "./status/GameState";
 import { Overlord as _sOverlord } from "./status/Overlord";
 import { MainSpawner as _sMainSpawner } from "./status/MainSpawner";
 import { WinPanel as _sWinPanel } from "./status/WinPanel";
+import { preloadShip } from "./actors/ship/Ship";
 
 export class SimpleGameScene extends Phaser.Scene {
   /*
@@ -42,6 +43,11 @@ export class SimpleGameScene extends Phaser.Scene {
     }
     this.callbacks = data.callbacks;
     this.state = new _sGameState(data.difficulty, data.winScore, data.matchWins);
+  }
+
+  // Loads the image and sound assets used by the actors.
+  preload() {
+    preloadShip(this);
   }
 
   /*

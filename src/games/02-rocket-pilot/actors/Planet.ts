@@ -4,6 +4,8 @@ import type { GameState } from "../status/GameState";
 
 export class Planet extends Actor {
   static readonly radius = 150;
+  // How strongly the planet bounces a ship back; higher than the screen-edge bounce.
+  static readonly bounce = 0.9;
   readonly body: Phaser.GameObjects.Arc;
   readonly glow: Phaser.GameObjects.Arc;
   readonly highlight: Phaser.GameObjects.Arc;
@@ -18,11 +20,14 @@ export class Planet extends Actor {
     );
 
     this.collisionLayer = "planet";
-    this.collider = this.body;
+    this.colliders = [this.body];
     scene.physics.add.existing(this.body);
     const physics = (this.body as Phaser.GameObjects.Arc & { body: Phaser.Physics.Arcade.Body }).body;
     physics.setCircle(Planet.radius);
     physics.moves = false;
+    // Immovable so a bouncing ship is pushed back instead of pushing the planet.
+    physics.immovable = true;
+    this.solidBounce = Planet.bounce;
 
     scene.tweens.add({
       targets: this.glow,

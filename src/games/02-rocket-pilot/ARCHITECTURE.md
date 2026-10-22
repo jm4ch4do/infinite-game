@@ -30,20 +30,22 @@ These are deliberate choices; keep new code consistent with them.
 game.ts (createGame)
   -> SimpleGameScene (scene.ts)
 
+SimpleGameScene.preload()
+  -> preloadShip(scene)     static loader of the ship's assets (the one actor call the scene makes; see notes)
+
 SimpleGameScene.create()
   -> new MainSpawner(scene, state)
   -> new Overlord(scene, state, mainSpawner, callbacks)
        -> mainSpawner.onSpawned = Overlord.register   (queues; overlord.start flushes the first spawn phase)
        -> physics.add.overlap(layer A, layer B, queueCollision)   per Overlord.collisionPairs
+       -> physics.add.collider(solid layer A, solid layer B)      per Overlord.solidPairs
   -> overlord.start(centerX, centerY, width, playerNames)
        -> mainSpawner.spawnInitial(...)
            every actor below is announced via MainSpawner.spawn() -> Overlord.register(actor)
            -> new Planet(scene, x, y)                       layer "planet"
-           
-           TODO: Add players, targets, and score display
-           // -> spawnPlayer(side, x, y, fireKeyCode) x2
-           // -> new TargetOrbit(scene, x, y)
-           // -> new ScoreBoard(scene, playerNames, winScore)
+           -> spawnPlayer("left", ...) and spawnPlayer("right", ...)   one ship and one player per side
+                -> new Ship(scene, x, y, side)              layer "ship", announced via onSpawned (an actor); the right side gets the red hull
+                -> new Player(scene, side, ship)            announced via onPlayerCreated (not an actor)
   -> overlord.resize(width, height)
 ```
 
@@ -51,8 +53,9 @@ SimpleGameScene.create()
 
 ```
 Phaser physics step (before the scene update)
-  -> overlap detection (currently no active collisions)
+  -> overlap(ship layer, planet layer)
        -> Overlord.queueCollision(objA, objB)   maps game objects to actors, only queues the pair
+  -> collider(ship-body layer, planet layer, processCallback)   before each contact, handleSolidContact on both actors; the ship then bounces off the planet with the planet's solidBounce
 
 SimpleGameScene.update(time, delta)
   -> Overlord.update(delta)
@@ -60,6 +63,10 @@ SimpleGameScene.update(time, delta)
             -> a.handleCollision(b); b.handleCollision(a)
        -> for each player: player.update(state)
        -> for each registered actor: actor.update(delta, state)
+
+Phaser post-update (after the scene update, when bodies are written back to sprites)
+  -> Overlord (POST_UPDATE listener)
+       -> for each registered actor: actor.lateUpdate()   the ship repositions its flame here
 ```
 
 ## Resize / layout
@@ -77,15 +84,17 @@ The spawn phase also calls handleResize once per actor, so newly spawned actors 
 
 ## Class responsibilities (one line each)
 
-- `SimpleGameScene` — Phaser lifecycle, wiring, audio setup (shared with actors through `provideAudio`), resize and the win panel; it never touches actors.
+- `SimpleGameScene` — Phaser lifecycle, wiring, audio setup (shared with actors through `provideAudio`), resize and the win panel; it never touches actor instances. Its `preload` calls the static `preloadShip`, since Phaser only loads assets inside a scene's `preload`.
 - `MainSpawner` — creates actors when asked and announces them to the Overlord; wires nothing.
 - `Overlord` — keeps the list of actors and updates them one by one; receives Phaser collisions and tells the colliding actors; owns scores, win status via `GameState`; passes resizes to actors.
 - `GameState` — match-wide data: scores, win score, match wins, rotation speed, game-over flag, playfield scale.
-- `Actor` (base class) — `audio` gives access to the shared sound player; `handleResize()` defaults to a no-op; `track()` registers Phaser objects so `destroy()` cleans them up; defaults `update()` and `handleCollision()` are no-ops; `remove()` / `onRemove(listener)` ask for and observe removal, `onDestroy(listener)` subscribes to destruction (done by the Overlord); `points` is what hitting it is worth; `collisionLayer` and `collider` opt it into Phaser collision detection.
-- `Planet` — the central obstacle; ignores collisions.
+- `Actor` (base class) — `audio` gives access to the shared sound player; `handleResize()` defaults to a no-op; `track()` registers Phaser objects so `destroy()` cleans them up; defaults `update()` and `handleCollision()` are no-ops; `remove()` / `onRemove(listener)` ask for and observe removal, `onDestroy(listener)` subscribes to destruction (done by the Overlord); `points` is what hitting it is worth; `collisionLayer` and `colliders` opt it into Phaser collision detection (overlap reports); `solidLayer` and `solids` make its physics bodies bounce off other solids, as the ship does off the planet; `solidBounce` is the bounce it gives a moving solid that hits it, and `handleSolidContact(other)` runs before each solid contact so the moving solid can apply that bounce.
+- `Planet` — the central obstacle; a solid that ships bounce off (immovable body, `solidBounce` stronger than the screen edges), and it ignores overlap reports.
+- `Ship` (`actors/ship/`, together with its assets and `preloadShip`) — the player's ship: a sprite (`ship.png`; the right player's ship uses a red copy built once at runtime by rotating the hue, `createRedTexture`) with a movement body and nine hull hit circles that turn with it, so the wings count as touching; an engine flame (`fire.png`) drawn behind it, shown only while thrusting and repositioned in `lateUpdate()` (called by the Overlord after the physics step); turns, thrusts with a speed cap (`update` limits its overall velocity) and slows down faster when not thrusting, bounces off world bounds and the planet (`handleSolidContact`), plays the hit sound (throttled) when any hit circle touches the planet, and loops the engine sound (`engine-sound.mp3`) while thrust is held. Ships aren't in any collision or solid pair, so the two ships pass through each other.
+- `Player` — not an actor. Reads its side's keys (left player, blue: A/D turn and W thrust; right player, red: arrows, left/right turn and up thrust) and commands its `Ship`.
 
 ## Notes
 
 - Phaser only reports overlaps; actors are never destroyed during the physics step. Collisions are queued and resolved in phase 1 of `Overlord.update`, and destruction waits for phase 4.
-- Planet body is a circle with `moves = false`: Arcade physics reads its (container-transformed) world position but never writes it back.
+- Planet body is a circle with `moves = false` and `immovable = true`: Arcade physics reads its (container-transformed) world position but never writes it back, and it is never pushed by a ship.
 - Notify-don't-ask: actors call optional callbacks when something happens (`Actor.emit`, `Actor.onRemove` / `Actor.onDestroy` listeners).

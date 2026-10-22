@@ -23,9 +23,14 @@ export abstract class Actor {
   // Score awarded to whoever hits this actor; 0 means it gives nothing.
   points = 0;
 
-  // Physics layer and body that make this actor take part in Phaser collision detection.
+  // Physics bodies that bounce off each other (as opposed to just reporting overlaps); the layer on the actor is set via solidLayer.
+  solidLayer?: string;
+  solids: Phaser.GameObjects.GameObject[] = [];
+  // Bounce this actor gives a moving solid that hits it; undefined leaves the moving solid's own bounce unchanged.
+  solidBounce?: number;
+  // Physics layer and objects that make this actor take part in Phaser collision detection.
   collisionLayer?: string;
-  collider?: Phaser.GameObjects.GameObject;
+  colliders: Phaser.GameObjects.GameObject[] = [];
 
   // Every actor is created with the scene it belongs to.
   constructor(protected readonly scene: Phaser.Scene) {}
@@ -70,11 +75,17 @@ export abstract class Actor {
   // Advances this actor by one frame; actors that don't change over time keep this empty.
   update(_delta: number, _state: GameState) {}
 
+  // Runs after the physics step has written positions back to sprites; actors that follow a physics body update here.
+  lateUpdate() {}
+
   // Repositions and rescales this actor for the current screen; actors with a fixed look keep this empty.
   handleResize(_width: number, _height: number, _state: GameState) {}
 
   // Reacts to a collision the Overlord reported; by default an actor ignores it.
   handleCollision(_other: Actor) {}
+
+  // Runs right before a solid contact is resolved, so a moving solid can set the bounce it uses for that contact; by default nothing changes.
+  handleSolidContact(_other: Actor) {}
 
   // Reacts to a score change the Overlord reported; by default an actor ignores it.
   handleScoreChanged(_side: Side, _score: number) {}

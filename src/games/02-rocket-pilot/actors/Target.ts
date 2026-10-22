@@ -16,7 +16,7 @@ export class Target extends Actor {
     this.body = this.track(scene.add.circle(x, y, Target.radius, 0xec4899));
     this.body.setStrokeStyle(3, 0xffffff, 0.6);
     this.collisionLayer = "target";
-    this.collider = this.body;
+    this.colliders = [this.body];
     scene.physics.add.existing(this.body);
     const physics = (this.body as Phaser.GameObjects.Arc & { body: Phaser.Physics.Arcade.Body }).body;
     physics.setCircle(Target.radius);

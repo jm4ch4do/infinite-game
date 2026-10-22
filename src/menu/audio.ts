@@ -28,14 +28,16 @@ export const createMenuAudio = (): MenuAudio => {
   clickSound.volume = 0.55;
   clickSound.preload = "auto";
 
+  const startMenuMusic = async () => {
+    try {
+      await bgMusic.play();
+    } catch {
+      // Browser may still block until first trusted interaction.
+    }
+  };
+
   return {
-    startMenuMusic: async () => {
-      try {
-        await bgMusic.play();
-      } catch {
-        // Browser may still block until first trusted interaction.
-      }
-    },
+    startMenuMusic,
     playHover: () => playSfx(hoverSound),
     playClick: () => playSfx(clickSound),
   };

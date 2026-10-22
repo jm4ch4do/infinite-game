@@ -14,8 +14,11 @@ type OverlordCallbacks = {
 export class Overlord {
   // Pairs of collision layers Phaser should report overlaps for.
   private static readonly collisionPairs: [string, string][] = [
-    ["bullet", "target"],
-    ["bullet", "planet"],
+    ["ship", "planet"],
+  ];
+  // Pairs of physics layers that bounce off each other instead of overlapping.
+  private static readonly solidPairs: [string, string][] = [
+    ["ship-body", "planet"],
   ];
 
   readonly scene: Phaser.Scene;
@@ -106,6 +109,13 @@ export class Overlord {
     Overlord.collisionPairs.forEach(([first, second]) => {
       scene.physics.add.overlap(this.layer(first), this.layer(second), this.queueCollision);
     });
+    Overlord.solidPairs.forEach(([first, second]) => {
+      scene.physics.add.collider(this.layer(first), this.layer(second), undefined, this.beforeSolidContact);
+    });
+    // Phaser writes physics bodies back to their sprites after update(), so actors that follow bodies get a late update.
+    const lateUpdate = () => this.actors.forEach((actor) => actor.lateUpdate());
+    scene.events.on(Phaser.Scenes.Events.POST_UPDATE, lateUpdate);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.POST_UPDATE, lateUpdate));
   }
 
   // Spawns the starting actors.
@@ -134,6 +144,17 @@ export class Overlord {
    * -------------------------------------------------------------------------
    */
   // Receives Phaser's overlap report; resolution waits until the physics step is over so actors aren't destroyed mid-step.
+  // Lets both solids know they are about to bounce, so a moving one can set its bounce for this contact.
+  private beforeSolidContact = (first: unknown, second: unknown) => {
+    const a = this.actorsByCollider.get(first as Phaser.GameObjects.GameObject);
+    const b = this.actorsByCollider.get(second as Phaser.GameObjects.GameObject);
+    if (a && b) {
+      a.handleSolidContact(b);
+      b.handleSolidContact(a);
+    }
+    return true;
+  };
+
   private queueCollision = (first: unknown, second: unknown) => {
     const a = this.actorsByCollider.get(first as Phaser.GameObjects.GameObject);
     const b = this.actorsByCollider.get(second as Phaser.GameObjects.GameObject);
@@ -171,9 +192,20 @@ export class Overlord {
       this.actors.push(actor);
       actor.handleResize(this.scene.scale.width, this.scene.scale.height, this.state);
 
-      if (actor.collisionLayer && actor.collider) {
-        this.layer(actor.collisionLayer).add(actor.collider);
-        this.actorsByCollider.set(actor.collider, actor);
+      if (actor.collisionLayer) {
+        const layer = this.layer(actor.collisionLayer);
+        actor.colliders.forEach((collider) => {
+          layer.add(collider);
+          this.actorsByCollider.set(collider, actor);
+        });
+      }
+
+      if (actor.solidLayer) {
+        const layer = this.layer(actor.solidLayer);
+        actor.solids.forEach((solid) => {
+          layer.add(solid);
+          this.actorsByCollider.set(solid, actor);
+        });
       }
     });
   }
@@ -205,9 +237,8 @@ export class Overlord {
       if (index !== -1) {
         this.actors.splice(index, 1);
       }
-      if (actor.collider) {
-        this.actorsByCollider.delete(actor.collider);
-      }
+      actor.colliders.forEach((collider) => this.actorsByCollider.delete(collider));
+      actor.solids.forEach((solid) => this.actorsByCollider.delete(solid));
       actor.destroy();
     });
     this.pendingRemovals.clear();

@@ -1,6 +1,9 @@
 import Phaser from "phaser";
 import { Actor as _aActor } from "../actors/Actor";
 import { Planet as _aPlanet } from "../actors/Planet";
+import { Ship as _aShip } from "../actors/ship/Ship";
+import { Player as _pPlayer } from "../players/Player";
+import { TargetOrbit as _aTargetOrbit } from "../actors/TargetOrbit";
 import { type Side } from "../config";
 import { GameState as _sGameState } from "./GameState";
 
@@ -10,8 +13,7 @@ export class MainSpawner {
   // Set by the Overlord so every spawned actor gets registered with it.
   onSpawned?: (actor: _aActor) => void;
   // Set by the Overlord so it can ask each player for its input every frame.
-  // TODO: Uncomment when adding players
-  // onPlayerCreated?: (player: _pPlayer) => void;
+  onPlayerCreated?: (player: _pPlayer) => void;
 
   // Creates the main spawner for a scene and its shared game state.
   constructor(scene: Phaser.Scene, state: _sGameState) {
@@ -19,23 +21,18 @@ export class MainSpawner {
     this.state = state;
   }
 
-  // Creates the planet, players, first target orbit, and score display for a new game.
-  // For now, only spawn the planet as a starting point for game 2.
-  spawnInitial(centerX: number, centerY: number, width: number, playerNames: Record<Side, string>) {
+  // Creates the planet and both players' ships for a new game.
+  spawnInitial(centerX: number, centerY: number, width: number, _playerNames: Record<Side, string>) {
     this.spawn(new _aPlanet(this.scene, centerX, centerY));
-    // TODO: Add players, targets, and score display
-    // this.spawnPlayer("left", _aCannon.margin, centerY, Phaser.Input.Keyboard.KeyCodes.Q);
-    // this.spawnPlayer("right", width - _aCannon.margin, centerY, Phaser.Input.Keyboard.KeyCodes.SPACE);
-    // this.spawnTargetOrbit(centerX, centerY);
-    // this.spawn(new _aScoreBoard(this.scene, playerNames, this.state.winScore));
+    this.spawnPlayer("left", width * 0.2, centerY);
+    this.spawnPlayer("right", width * 0.8, centerY);
   }
 
-  // Creates a cannon and the player who controls it; the Overlord receives both.
-  // TODO: Uncomment when adding players
-  // private spawnPlayer(side: Side, x: number, y: number, fireKeyCode: number) {
-  //   const cannon = this.spawn(new _aCannon(this.scene, x, y, side));
-  //   this.onPlayerCreated?.(new _pPlayer(this.scene, side, cannon, fireKeyCode));
-  // }
+  // Creates a ship and the player who controls it; the Overlord receives both.
+  private spawnPlayer(side: Side, x: number, y: number) {
+    const ship = this.spawn(new _aShip(this.scene, x, y, side));
+    this.onPlayerCreated?.(new _pPlayer(this.scene, side, ship));
+  }
 
   // Announces a freshly created actor to the Overlord and returns it.
   private spawn<T extends _aActor>(actor: T) {
@@ -49,9 +46,8 @@ export class MainSpawner {
    * -------------------------------------------------------------------------
    */
   // Creates a target orbit and announces it and every target in it.
-  // TODO: Uncomment when adding targets
-  // spawnTargetOrbit(x: number, y: number) {
-  //   const orbit = this.spawn(new _aTargetOrbit(this.scene, x, y));
-  //   orbit.targets.forEach((target) => this.spawn(target));
-  // }
+  spawnTargetOrbit(x: number, y: number) {
+    const orbit = this.spawn(new _aTargetOrbit(this.scene, x, y));
+    orbit.targets.forEach((target) => this.spawn(target));
+  }
 }
