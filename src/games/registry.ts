@@ -1,6 +1,7 @@
 import type Phaser from "phaser";
 import { startGame as start01Game } from "./01-shoot-the-moons";
 import { startGame as startRocketPilotGame } from "./02-rocket-pilot";
+import { startGame as startRocketPilotFreeGame } from "./03-rocket-pilot-free";
 
 export type PlayerNames = { left: string; right: string };
 
@@ -34,6 +35,5 @@ export type GameEntry = {
 export const games: GameEntry[] = [
   { id: "01-shoot-the-moons", title: "1 - Shoot the Moons", twoPlayer: true, start: start01Game },
   { id: "02-rocket-pilot", title: "2 - Rocket Pilot", twoPlayer: true, start: startRocketPilotGame },
-  // Not selectable yet — uncomment once game 3 is ready.
-  // { id: "03-game-name", title: "Game 3", start: start03Game },
+  { id: "03-rocket-pilot-free", title: "3 - Rocket Pilot Free", twoPlayer: true, start: startRocketPilotFreeGame },
 ];
