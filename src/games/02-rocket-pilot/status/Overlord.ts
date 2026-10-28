@@ -15,11 +15,10 @@ export class Overlord {
   // Pairs of collision layers Phaser should report overlaps for.
   private static readonly collisionPairs: [string, string][] = [
     ["ship", "planet"],
+    ["ship", "mini-asteroid"],
   ];
-  // Pairs of physics layers that bounce off each other instead of overlapping.
-  private static readonly solidPairs: [string, string][] = [
-    ["ship-body", "planet"],
-  ];
+  // Pairs of physics layers that bounce off each other instead of overlapping. The ships bounce off the planet through their hull circles instead.
+  private static readonly solidPairs: [string, string][] = [];
 
   readonly scene: Phaser.Scene;
   readonly state: _sGameState;

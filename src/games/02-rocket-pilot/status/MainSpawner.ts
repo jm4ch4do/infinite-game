@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { Actor as _aActor } from "../actors/Actor";
 import { Planet as _aPlanet } from "../actors/Planet";
+import { MiniAsteroid as _aMiniAsteroid, miniAsteroidPositions } from "../actors/mini-asteroid/MiniAsteroid";
 import { Ship as _aShip } from "../actors/ship/Ship";
 import { Player as _pPlayer } from "../players/Player";
 import { TargetOrbit as _aTargetOrbit } from "../actors/TargetOrbit";
@@ -21,11 +22,13 @@ export class MainSpawner {
     this.state = state;
   }
 
-  // Creates the planet and both players' ships for a new game.
+  // Creates the planet, the mini asteroids and both players' ships for a new game.
   spawnInitial(centerX: number, centerY: number, width: number, _playerNames: Record<Side, string>) {
     this.spawn(new _aPlanet(this.scene, centerX, centerY));
-    this.spawnPlayer("left", width * 0.2, centerY);
-    this.spawnPlayer("right", width * 0.8, centerY);
+    miniAsteroidPositions.forEach(({ xFraction, yFraction }) => this.spawn(new _aMiniAsteroid(this.scene, xFraction, yFraction)));
+    // Both ships start on the left: blue above and red below the planet's centre line, with a clear gap between them.
+    this.spawnPlayer("left", width * 0.1, centerY * 0.6);
+    this.spawnPlayer("right", width * 0.1, centerY * 1.4);
   }
 
   // Creates a ship and the player who controls it; the Overlord receives both.

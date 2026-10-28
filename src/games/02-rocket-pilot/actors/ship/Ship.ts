@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { Actor } from "../Actor";
 import type { GameState } from "../../status/GameState";
 import { type Side } from "../../config";
-import shipUrl from "./ship.png";
+import shipUrl from "./ship-13.png";
 import fireUrl from "./fire.png";
 import engineSoundUrl from "./engine-sound.mp3";
 
@@ -38,19 +38,19 @@ export class Ship extends Actor {
   // Physics body for movement and wall bounces, in source-texture pixels. Sized to reach the wingtips.
   private static readonly bodyRadius = 70;
   // Flame placement along the ship's heading, in source-texture pixels: it starts tucked this far under the hull and moves back by up to flameMaxGap as the ship reaches top speed.
-  private static readonly flameInset = 15;
+  private static readonly flameInset = 11;
   private static readonly flameMaxGap = 16;
   // Hull hit circles, in source-texture pixels from the sprite's center. They are placed on the wings and nose so the whole chevron counts as touching, and they turn with the ship.
   private static readonly hitCircles: { x: number; y: number; radius: number }[] = [
-    { x: 0, y: -38.5, radius: 15 },
-    { x: -13, y: -18.5, radius: 15 },
-    { x: 13, y: -18.5, radius: 15 },
-    { x: -27, y: -0.5, radius: 15 },
-    { x: 27, y: -0.5, radius: 15 },
-    { x: -42, y: 17.5, radius: 15 },
-    { x: 42, y: 17.5, radius: 15 },
-    { x: -47, y: 29.5, radius: 13 },
-    { x: 48, y: 29.5, radius: 13 },
+    { x: 0, y: 0.5, radius: 14 },
+    { x: -27.5, y: 8, radius: 14 },
+    { x: 27.5, y: 8, radius: 14 },
+    { x: -45.5, y: 25, radius: 13 },
+    { x: 45.5, y: 25, radius: 13 },
+    { x: -13.5, y: -16, radius: 14 },
+    { x: 13.5, y: -16, radius: 14 },
+    { x: -1.5, y: -28, radius: 14 },
+    { x: 1.5, y: -28, radius: 14 },
   ];
   private readonly sprite: PhysicsSprite;
   // Engine flame drawn behind the hull; it has the same canvas size as the hull so it lines up without offsets.
@@ -66,6 +66,8 @@ export class Ship extends Actor {
     super(scene);
     const textureKey = side === "left" ? Ship.textureKey : Ship.createRedTexture(scene);
     this.sprite = this.track(scene.physics.add.sprite(x, y, textureKey));
+    // The artwork points up, so a quarter turn makes the ship start facing right.
+    this.sprite.setRotation(Math.PI / 2);
     this.sprite.setCircle(
       Ship.bodyRadius,
       this.sprite.width / 2 - Ship.bodyRadius,
@@ -124,18 +126,51 @@ export class Ship extends Actor {
     return zone;
   }
 
-  // Moves the hit circles to follow the ship's position, rotation and scale.
-  private updateHitZones() {
+  // Converts a hull offset from the sprite's center into world coordinates, following the ship's position, rotation and scale.
+  private hullToWorld(x: number, y: number) {
     const scale = this.sprite.scaleX;
     const cos = Math.cos(this.sprite.rotation);
     const sin = Math.sin(this.sprite.rotation);
+    const dx = x * scale;
+    const dy = y * scale;
+    return { x: this.sprite.x + dx * cos - dy * sin, y: this.sprite.y + dx * sin + dy * cos };
+  }
+
+  // Moves the hit circles to follow the ship's position, rotation and scale.
+  private updateHitZones() {
+    const scale = this.sprite.scaleX;
     Ship.hitCircles.forEach(({ x, y }, i) => {
-      const dx = x * scale;
-      const dy = y * scale;
-      this.hitZones[i]
-        .setPosition(this.sprite.x + dx * cos - dy * sin, this.sprite.y + dx * sin + dy * cos)
-        .setScale(scale);
+      const hull = this.hullToWorld(x, y);
+      this.hitZones[i].setPosition(hull.x, hull.y).setScale(scale);
     });
+  }
+
+  // Pushes the ship out of a circle it overlaps and reflects its velocity off that circle. Overlap uses the hull circles, not the wider movement body, so the bounce matches the drawn ship.
+  bounceOffCircle(centerX: number, centerY: number, radius: number, bounce: number) {
+    const scale = this.sprite.scaleX;
+    let push: { nx: number; ny: number; depth: number } | undefined;
+    for (const { x, y, radius: hullRadius } of Ship.hitCircles) {
+      const hull = this.hullToWorld(x, y);
+      const ox = hull.x - centerX;
+      const oy = hull.y - centerY;
+      const dist = Math.hypot(ox, oy);
+      const depth = hullRadius * scale + radius - dist;
+      if (depth > 0 && (!push || depth > push.depth)) {
+        push = { nx: dist > 0 ? ox / dist : 1, ny: dist > 0 ? oy / dist : 0, depth };
+      }
+    }
+    if (!push) {
+      return;
+    }
+
+    const { nx, ny, depth } = push;
+    this.sprite.setPosition(this.sprite.x + nx * depth, this.sprite.y + ny * depth);
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
+    const approach = body.velocity.x * nx + body.velocity.y * ny;
+    if (approach < 0) {
+      body.velocity.x -= (1 + bounce) * approach * nx;
+      body.velocity.y -= (1 + bounce) * approach * ny;
+    }
   }
 
   // Moves the flame to follow the ship's position, rotation and scale. It sits partly under the hull and drifts back along the ship's own axis as speed rises, so it stays on the tail while turning.

@@ -6,6 +6,8 @@ import { Overlord as _sOverlord } from "./status/Overlord";
 import { MainSpawner as _sMainSpawner } from "./status/MainSpawner";
 import { WinPanel as _sWinPanel } from "./status/WinPanel";
 import { preloadShip } from "./actors/ship/Ship";
+import { preloadMiniAsteroid } from "./actors/mini-asteroid/MiniAsteroid";
+import { preloadPlanet } from "./actors/Planet";
 
 export class SimpleGameScene extends Phaser.Scene {
   /*
@@ -48,6 +50,8 @@ export class SimpleGameScene extends Phaser.Scene {
   // Loads the image and sound assets used by the actors.
   preload() {
     preloadShip(this);
+    preloadMiniAsteroid(this);
+    preloadPlanet(this);
   }
 
   /*

@@ -32,6 +32,7 @@ game.ts (createGame)
 
 SimpleGameScene.preload()
   -> preloadShip(scene)     static loader of the ship's assets (the one actor call the scene makes; see notes)
+  -> preloadPlanet(scene)       static loader of the planet's texture
 
 SimpleGameScene.create()
   -> new MainSpawner(scene, state)
@@ -43,7 +44,8 @@ SimpleGameScene.create()
        -> mainSpawner.spawnInitial(...)
            every actor below is announced via MainSpawner.spawn() -> Overlord.register(actor)
            -> new Planet(scene, x, y)                       layer "planet"
-           -> spawnPlayer("left", ...) and spawnPlayer("right", ...)   one ship and one player per side
+           -> new MiniAsteroid(scene, x, y) x20             layer "mini-asteroid" (overlap hit circle); positions from miniAsteroidPositions, placed on resize
+           -> spawnPlayer("left", ...) and spawnPlayer("right", ...)   one ship and one player per side; both ships start on the left, blue slightly above and red slightly below the centre line
                 -> new Ship(scene, x, y, side)              layer "ship", announced via onSpawned (an actor); the right side gets the red hull
                 -> new Player(scene, side, ship)            announced via onPlayerCreated (not an actor)
   -> overlord.resize(width, height)
@@ -55,7 +57,8 @@ SimpleGameScene.create()
 Phaser physics step (before the scene update)
   -> overlap(ship layer, planet layer)
        -> Overlord.queueCollision(objA, objB)   maps game objects to actors, only queues the pair
-  -> collider(ship-body layer, planet layer, processCallback)   before each contact, handleSolidContact on both actors; the ship then bounces off the planet with the planet's solidBounce
+  -> overlap(ship layer, mini-asteroid layer)   same queueing; MiniAsteroid.handleCollision then calls Ship.bounceOffCircle with its own circle
+  (no solid pairs in game 2; the planet pushes ships the same way, in Planet.handleCollision)
 
 SimpleGameScene.update(time, delta)
   -> Overlord.update(delta)
@@ -77,6 +80,7 @@ scene.handleResize(gameSize)
        -> state.updatePlayfieldScale(width)
        -> for each registered actor: actor.handleResize(width, height, state)
             -> Planet: center and scale itself
+            -> MiniAsteroid: scale itself, its glow, and its hit circle together, at its own screen position
   -> winPanel?.layout()
 
 The spawn phase also calls handleResize once per actor, so newly spawned actors start laid out.
@@ -89,9 +93,19 @@ The spawn phase also calls handleResize once per actor, so newly spawned actors 
 - `Overlord` — keeps the list of actors and updates them one by one; receives Phaser collisions and tells the colliding actors; owns scores, win status via `GameState`; passes resizes to actors.
 - `GameState` — match-wide data: scores, win score, match wins, rotation speed, game-over flag, playfield scale.
 - `Actor` (base class) — `audio` gives access to the shared sound player; `handleResize()` defaults to a no-op; `track()` registers Phaser objects so `destroy()` cleans them up; defaults `update()` and `handleCollision()` are no-ops; `remove()` / `onRemove(listener)` ask for and observe removal, `onDestroy(listener)` subscribes to destruction (done by the Overlord); `points` is what hitting it is worth; `collisionLayer` and `colliders` opt it into Phaser collision detection (overlap reports); `solidLayer` and `solids` make its physics bodies bounce off other solids, as the ship does off the planet; `solidBounce` is the bounce it gives a moving solid that hits it, and `handleSolidContact(other)` runs before each solid contact so the moving solid can apply that bounce.
-- `Planet` — the central obstacle; a solid that ships bounce off (immovable body, `solidBounce` stronger than the screen edges), and it ignores overlap reports.
-- `Ship` (`actors/ship/`, together with its assets and `preloadShip`) — the player's ship: a sprite (`ship.png`; the right player's ship uses a red copy built once at runtime by rotating the hue, `createRedTexture`) with a movement body and nine hull hit circles that turn with it, so the wings count as touching; an engine flame (`fire.png`) drawn behind it, shown only while thrusting and repositioned in `lateUpdate()` (called by the Overlord after the physics step); turns, thrusts with a speed cap (`update` limits its overall velocity) and slows down faster when not thrusting, bounces off world bounds and the planet (`handleSolidContact`), plays the hit sound (throttled) when any hit circle touches the planet, and loops the engine sound (`engine-sound.mp3`) while thrust is held. Ships aren't in any collision or solid pair, so the two ships pass through each other.
+- `Planet` (`actors/Planet.ts`, together with its image `planet.png` and `preloadPlanet`) — the central obstacle: the blue planet from the planet sheet in [Reference images](#reference-images-outside-the-game), cut out with a circular mask and drawn as is; a cyan glow pulses behind it. A hidden circle of radius 150 matching the drawn disc is its collision circle (on collision layer `planet`, immovable). It is not a solid: on overlap with a ship, `handleCollision` calls `Ship.bounceOffCircle` with that circle and `bounce` 0.9, so ships bounce where their hull circles touch the disc.
+- `MiniAsteroid` (`actors/mini-asteroid/`, together with its image `mini-asteroid.png`, `preloadMiniAsteroid`, and the position list `miniAsteroidPositions`) — a small sphere; the picture is used as is, with its background removed. Twenty are spawned in one uneven scatter on the right side of the screen, with neighbours from about 70 px apart (a ship still fits between them, with a small guard space) to well over 100 px apart. Each has a cyan glow and one hit circle covering the sphere, on collision layer `mini-asteroid`. It is not a solid: on overlap with a ship, `handleCollision` calls `Ship.bounceOffCircle` with its circle and a `bounce` of 0.8. The ship reflects off whichever of its hull circles is deepest, so side and nose hits both bounce at visual contact.
+- `Ship` (`actors/ship/`, together with its assets and `preloadShip`) — the player's ship: a sprite (`ship-13.png`; the right player's ship uses a red copy built once at runtime by rotating the hue, `createRedTexture`) with a movement body and nine hull hit circles that turn with it, so the wings count as touching; an engine flame (`fire.png`) drawn behind it, shown only while thrusting and repositioned in `lateUpdate()` (called by the Overlord after the physics step); turns, thrusts with a speed cap (`update` limits its overall velocity) and slows down faster when not thrusting, bounces off world bounds and the planet (through `bounceOffCircle`, called by the planet's `handleCollision`), plays the hit sound (throttled) when any hit circle touches the planet, and loops the engine sound (`engine-sound.mp3`) while thrust is held. Ships are in collision pairs with the planet and the mini asteroids only, not with each other, so the two ships pass through each other.
 - `Player` — not an actor. Reads its side's keys (left player, blue: A/D turn and W thrust; right player, red: arrows, left/right turn and up thrust) and commands its `Ship`.
+
+## Reference images (outside the game)
+
+The repo-root folder `reference-images/` (next to `src/`) holds useful pictures that are not part of the game. Nothing in the game imports from it. The game uses its own cut-out copies in `actors/`.
+
+- `2803638.jpg` — sheet of nine planets. The blue planet at centre right was cut into `actors/planet.png`.
+- `ship versions.png` — sheet of ship designs. Version 13 was cut into `actors/ship/ship-13.png`.
+- `Set of colorful asteroids of different shapes, textures and size.jpg` — asteroid sheet. The big blue asteroid was removed from the game; the picture is kept for reference only.
+- `mini asteroid.png` — mini asteroid reference picture. The game uses `actors/mini-asteroid/mini-asteroid.png`.
 
 ## Notes
 
