@@ -3,6 +3,7 @@ import type Phaser from "phaser";
 export type GameAudio = {
   playShoot: () => void;
   playHit: () => void;
+  playPowerUp: () => void;
   dispose: () => void;
 };
 
@@ -75,9 +76,36 @@ export const createGameAudio = (): GameAudio => {
     noise.stop(now + 0.2);
   };
 
+  // A quick rising two-note chime for collecting a power-up.
+  const playPowerUp = () => {
+    resume();
+    const now = context.currentTime;
+
+    [880, 1320].forEach((frequency, i) => {
+      const start = now + i * 0.08;
+
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.25, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.2);
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+
+      oscillator.start(start);
+      oscillator.stop(start + 0.21);
+    });
+  };
+
   return {
     playShoot,
     playHit,
+    playPowerUp,
     dispose: () => {
       context.close().catch(() => {});
     },

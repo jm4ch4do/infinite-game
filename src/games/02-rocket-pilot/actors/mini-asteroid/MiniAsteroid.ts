@@ -12,28 +12,28 @@ export const preloadMiniAsteroid = (scene: Phaser.Scene) => {
 // One circle covering the sphere, used to detect ship contact; x and y are offsets from the image center and radius, in texture pixels.
 const hitCircles = [{ x: 0, y: 0, radius: 19 }];
 
-// Screen positions of all mini asteroids as shares of the screen, all on the right side. The spacing is deliberately uneven: some neighbours are about 70 px apart at the default size (enough for a ship to pass, with a small guard space) and others are well over 100 px apart.
+// Screen positions of all mini asteroids as shares of the screen, all on the right side. The layout is mirrored across the horizontal centre line, so the top and bottom halves match and both players get the same space. Neighbours are at least about 84 px apart at the default size.
 export const miniAsteroidPositions = [
-  { xFraction: 0.79, yFraction: 0.68 },
   { xFraction: 0.772, yFraction: 0.087 },
   { xFraction: 0.904, yFraction: 0.301 },
   { xFraction: 0.633, yFraction: 0.346 },
   { xFraction: 0.682, yFraction: 0.196 },
   { xFraction: 0.861, yFraction: 0.184 },
-  { xFraction: 0.896, yFraction: 0.925 },
-  { xFraction: 0.916, yFraction: 0.743 },
-  { xFraction: 0.732, yFraction: 0.934 },
   { xFraction: 0.768, yFraction: 0.281 },
-  { xFraction: 0.653, yFraction: 0.592 },
-  { xFraction: 0.675, yFraction: 0.475 },
-  { xFraction: 0.591, yFraction: 0.825 },
-  { xFraction: 0.702, yFraction: 0.747 },
-  { xFraction: 0.932, yFraction: 0.51 },
   { xFraction: 0.888, yFraction: 0.078 },
-  { xFraction: 0.789, yFraction: 0.794 },
-  { xFraction: 0.576, yFraction: 0.662 },
   { xFraction: 0.654, yFraction: 0.087 },
-  { xFraction: 0.636, yFraction: 0.928 },
+  { xFraction: 0.772, yFraction: 0.913 },
+  { xFraction: 0.904, yFraction: 0.699 },
+  { xFraction: 0.633, yFraction: 0.654 },
+  { xFraction: 0.682, yFraction: 0.804 },
+  { xFraction: 0.861, yFraction: 0.816 },
+  { xFraction: 0.768, yFraction: 0.719 },
+  { xFraction: 0.888, yFraction: 0.922 },
+  { xFraction: 0.654, yFraction: 0.913 },
+  { xFraction: 0.716, yFraction: 0.418 },
+  { xFraction: 0.716, yFraction: 0.582 },
+  { xFraction: 0.6, yFraction: 0.207 },
+  { xFraction: 0.6, yFraction: 0.793 },
 ];
 
 export class MiniAsteroid extends Actor {

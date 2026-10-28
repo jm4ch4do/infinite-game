@@ -16,6 +16,7 @@ export class Overlord {
   private static readonly collisionPairs: [string, string][] = [
     ["ship", "planet"],
     ["ship", "mini-asteroid"],
+    ["ship", "power-up"],
   ];
   // Pairs of physics layers that bounce off each other instead of overlapping. The ships bounce off the planet through their hull circles instead.
   private static readonly solidPairs: [string, string][] = [];

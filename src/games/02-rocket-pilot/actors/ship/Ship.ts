@@ -62,7 +62,7 @@ export class Ship extends Actor {
   private thrusting = false;
 
   // Creates the ship sprite with its movement body and the hull hit circles.
-  constructor(scene: Phaser.Scene, x: number, y: number, side: Side) {
+  constructor(scene: Phaser.Scene, x: number, y: number, readonly side: Side) {
     super(scene);
     const textureKey = side === "left" ? Ship.textureKey : Ship.createRedTexture(scene);
     this.sprite = this.track(scene.physics.add.sprite(x, y, textureKey));

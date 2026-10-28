@@ -8,6 +8,7 @@ import { WinPanel as _sWinPanel } from "./status/WinPanel";
 import { preloadShip } from "./actors/ship/Ship";
 import { preloadMiniAsteroid } from "./actors/mini-asteroid/MiniAsteroid";
 import { preloadPlanet } from "./actors/Planet";
+import { preloadPowerUp } from "./actors/power-up/PowerUp";
 
 export class SimpleGameScene extends Phaser.Scene {
   /*
@@ -52,6 +53,7 @@ export class SimpleGameScene extends Phaser.Scene {
     preloadShip(this);
     preloadMiniAsteroid(this);
     preloadPlanet(this);
+    preloadPowerUp(this);
   }
 
   /*
